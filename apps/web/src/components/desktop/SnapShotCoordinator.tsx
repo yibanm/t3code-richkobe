@@ -41,6 +41,7 @@ import {
   openQuestionAttachmentDraft,
 } from "../../questionAttachments";
 import { stackedThreadToast, toastManager } from "../ui/toast";
+import { translateNow } from "../../lib/miscTranslateNow";
 
 type CaptureTarget = DraftId | ScopedThreadRef;
 type CaptureFailure = "missing-project" | "delivery";
@@ -170,7 +171,7 @@ export async function deliverSnapShot(
   const compressed = await compressImageToByteLimit(original, PROVIDER_SEND_TURN_MAX_IMAGE_BYTES);
   if (!compressed.ok) {
     finishSnapShotAnimation(item.id);
-    throw new Error("The captured window is too large to attach.");
+    throw new Error(translateNow("misc.desktop.snap.tooLarge"));
   }
   const file = compressed.file;
   const source = resizeSnapShotSource(capture.source, compressed.imageSize);
@@ -197,7 +198,7 @@ export async function deliverSnapShot(
         ? store.addImage(target, image)
         : questionAttachmentCount < PROVIDER_SEND_TURN_MAX_ATTACHMENTS &&
           store.addImages(target, [image]).includes(capture.id);
-    if (!added) throw new Error("Remove an attachment, then try this capture again.");
+    if (!added) throw new Error(translateNow("misc.desktop.snap.removeAttachment"));
   }
   const persisted: PersistedComposerImageAttachment = {
     id: capture.id,
@@ -213,7 +214,7 @@ export async function deliverSnapShot(
       ?.persistedAttachments.filter((attachment) => attachment.id !== capture.id) ?? [];
   await store.syncPersistedAttachments(target, [...persistedAttachments, persisted]);
   if (!store.getComposerDraft(target)?.persistedAttachments.some(({ id }) => id === capture.id)) {
-    throw new Error("The captured window could not be saved to the draft.");
+    throw new Error(translateNow("misc.desktop.snap.cannotSaveDraft"));
   }
 
   // Paint the attachment before removing the capture overlay to avoid missing frames at landing.
@@ -374,8 +375,8 @@ export function SnapShotCoordinator() {
               "missing-project",
               stackedThreadToast({
                 type: "error",
-                title: "Snapshot taken, but no project is available",
-                description: "Add a project, then capture the window again.",
+                title: translateNow("misc.desktop.snap.noProjectTitle"),
+                description: translateNow("misc.desktop.snap.noProjectDescription"),
               }),
             );
             continue;
@@ -398,10 +399,14 @@ export function SnapShotCoordinator() {
               "delivery",
               stackedThreadToast({
                 type: "error",
-                title: "Snapshot failed",
-                description: `Capture ${item.id}: ${
-                  error instanceof Error ? error.message : "Try the capture again."
-                }`,
+                title: translateNow("misc.desktop.snap.failed"),
+                description: translateNow("misc.desktop.snap.captureError", {
+                  id: item.id,
+                  message:
+                    error instanceof Error
+                      ? error.message
+                      : translateNow("misc.desktop.snap.tryAgain"),
+                }),
               }),
             );
           }
@@ -414,8 +419,9 @@ export function SnapShotCoordinator() {
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Snapshot failed",
-            description: error instanceof Error ? error.message : "Try the capture again.",
+            title: translateNow("misc.desktop.snap.failed"),
+            description:
+              error instanceof Error ? error.message : translateNow("misc.desktop.snap.tryAgain"),
           }),
         );
       })
@@ -483,8 +489,8 @@ export function SnapShotCoordinator() {
             toastManager.add(
               stackedThreadToast({
                 type: "error",
-                title: "Snapshot failed",
-                description: state.message ?? "Try the capture again.",
+                title: translateNow("misc.desktop.snap.failed"),
+                description: state.message ?? translateNow("misc.desktop.snap.tryAgain"),
               }),
             );
           });

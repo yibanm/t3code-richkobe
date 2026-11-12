@@ -13,6 +13,7 @@ import {
   useState,
   type MouseEvent as ReactMouseEvent,
 } from "react";
+import { translateNow } from "~/components/media/translateNow";
 import {
   findAssistantCitationSourceAnchor,
   type AssistantCitationSourceAnchor,
@@ -219,7 +220,7 @@ export function AssistantCitationChip({
                   : undefined
               }
               ref={commentPopupRef}
-              aria-label="Edit citation comment"
+              aria-label={translateNow("chat.citation.editComment")}
               width="md"
               padding="compact"
               onPointerDown={(event) => event.stopPropagation()}

@@ -982,7 +982,7 @@ interface StagePackageJson {
 }
 
 export const STAGE_INSTALL_ARGS = ["install", "--prod"] as const;
-export const DESKTOP_ELECTRON_LANGUAGES = ["en-US"] as const;
+export const DESKTOP_ELECTRON_LANGUAGES = ["en-US", "zh-CN"] as const;
 export const DESKTOP_FILE_EXCLUSIONS = [
   // Cursor walks from argv[1] to platform assets; helpers and native addons need real paths outside ASAR.
   "!**/node_modules/@cursor/sdk-*/**/*",
@@ -2953,6 +2953,11 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     buildConfig.nsis = {
       differentialPackage: true,
       include: "apps/desktop/resources/installer.nsh",
+      // Assisted installer: show the wizard with a directory chooser instead of
+      // the default one-click silent install to a fixed per-user location.
+      oneClick: false,
+      perMachine: false,
+      allowToChangeInstallationDirectory: true,
     };
     const winConfig: Record<string, unknown> = {
       target: [target],

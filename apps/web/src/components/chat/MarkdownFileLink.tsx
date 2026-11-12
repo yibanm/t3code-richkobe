@@ -24,6 +24,7 @@ import {
 } from "./MarkdownFileLink.logic";
 import { reportMarkdownActionFailure } from "./markdownActionFailure";
 import { WorkspaceEntryIcon, WorkspaceEntryTooltip } from "./WorkspaceEntryIcon";
+import { translateNow } from "../media/translateNow";
 
 interface MarkdownFileLinkProps {
   environmentId: EnvironmentId | null;
@@ -90,8 +91,9 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Unable to open file",
-            description: error instanceof Error ? error.message : "An error occurred.",
+            title: translateNow("chat.fileLink.openFailed"),
+            description:
+              error instanceof Error ? error.message : translateNow("chat.fileLink.errorOccurred"),
           }),
         );
       } catch (cause) {
@@ -102,8 +104,9 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Unable to open file",
-            description: cause instanceof Error ? cause.message : "An error occurred.",
+            title: translateNow("chat.fileLink.openFailed"),
+            description:
+              cause instanceof Error ? cause.message : translateNow("chat.fileLink.errorOccurred"),
           }),
         );
       }
@@ -140,8 +143,9 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Unable to open file in browser",
-            description: error instanceof Error ? error.message : "An error occurred.",
+            title: translateNow("chat.fileLink.openInBrowserFailed"),
+            description:
+              error instanceof Error ? error.message : translateNow("chat.fileLink.errorOccurred"),
           }),
         );
       } catch (cause) {
@@ -152,8 +156,9 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Unable to open file in browser",
-            description: cause instanceof Error ? cause.message : "An error occurred.",
+            title: translateNow("chat.fileLink.openInBrowserFailed"),
+            description:
+              cause instanceof Error ? cause.message : translateNow("chat.fileLink.errorOccurred"),
           }),
         );
       }
@@ -178,8 +183,9 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Unable to reveal file",
-            description: error instanceof Error ? error.message : "An error occurred.",
+            title: translateNow("chat.fileLink.revealFailed"),
+            description:
+              error instanceof Error ? error.message : translateNow("chat.fileLink.errorOccurred"),
           }),
         );
       } catch (cause) {
@@ -190,8 +196,9 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Unable to reveal file",
-            description: cause instanceof Error ? cause.message : "An error occurred.",
+            title: translateNow("chat.fileLink.revealFailed"),
+            description:
+              cause instanceof Error ? cause.message : translateNow("chat.fileLink.errorOccurred"),
           }),
         );
       }
@@ -204,7 +211,7 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
         stackedThreadToast({
           type: "error",
           title: `Failed to copy ${title.toLowerCase()}`,
-          description: "Clipboard API unavailable.",
+          description: translateNow("chat.fileLink.clipboardUnavailable"),
         }),
       );
       return;
@@ -237,7 +244,8 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
           stackedThreadToast({
             type: "error",
             title: `Failed to copy ${title.toLowerCase()}`,
-            description: error instanceof Error ? error.message : "An error occurred.",
+            description:
+              error instanceof Error ? error.message : translateNow("chat.fileLink.errorOccurred"),
           }),
         );
       },
@@ -252,10 +260,16 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
       const copyItems = markdownFileCopyMenuItems({ targetPath, workspaceRelativePath });
       const clicked = await api.contextMenu.show(
         [
-          ...(onOpenMedia ? ([{ id: "preview-media", label: "Preview media" }] as const) : []),
+          ...(onOpenMedia
+            ? ([
+                { id: "preview-media", label: translateNow("chat.fileLink.previewMedia") },
+              ] as const)
+            : []),
           ...(onOpen ? ([{ id: "open", label: openInEditorMenuLabel }] as const) : []),
           ...(onOpenInBrowser
-            ? ([{ id: "open-in-browser", label: "Open in integrated browser" }] as const)
+            ? ([
+                { id: "open-in-browser", label: translateNow("chat.fileLink.openInBrowser") },
+              ] as const)
             : []),
           ...(onReveal && revealLabel ? ([{ id: "reveal", label: revealLabel }] as const) : []),
           ...copyItems.map(({ id, label }) => ({ id, label })),
