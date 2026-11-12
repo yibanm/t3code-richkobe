@@ -1,0 +1,132 @@
+# Builds an unsigned Windows installer for this fork. The upstream release
+# workflow needs 26 secrets (GitHub App publish, Azure signing, Apple, Vercel)
+# that a fork does not have, so this is the smallest path that produces an .exe:
+# a preview version string makes build-desktop-artifact.ts set publish to null,
+# the public identifiers come from .env.example, and reuse-resource-monitor skips
+# the Rust/MSVC (Spectre) prerequisite probe the way the upstream Linux job does.
+#
+# Runs on Linux and cross-compiles, exactly like the upstream Windows job: the
+# app-builder-lib patch lets it read the uninstaller without wine.
+name: Build Windows installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [i18n-zh-hans]
+
+permissions:
+  contents: write
+
+env:
+  RUST_TARGET: x86_64-pc-windows-msvc
+
+jobs:
+  build:
+    name: Windows x64 installer
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      # Public identifiers, not secrets; the same ones official preview builds bake in.
+      T3CODE_CLERK_PUBLISHABLE_KEY: ${{ vars.T3CODE_CLERK_PUBLISHABLE_KEY }}
+      T3CODE_CLERK_JWT_TEMPLATE: t3-relay
+      T3CODE_CLERK_CLI_OAUTH_CLIENT_ID: ${{ vars.T3CODE_CLERK_CLI_OAUTH_CLIENT_ID }}
+      T3CODE_RELAY_URL: https://relay.t3.codes
+      T3CODE_TELEMETRY_CHANNEL: dev
+    steps:
+      - name: Checkout
+        shell: bash
+        env:
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          set -euo pipefail
+          # actions/checkout runs submodule cleanup even with submodules off, which
+          # fails on the orphaned gitlinks in the vendored .repos tree. Do it by hand
+          # and sparse-checkout that tree out, as release-desktop.yml does.
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          git sparse-checkout set --no-cone '/*' '!/.repos/'
+          git -c checkout.workers=0 checkout --detach FETCH_HEAD
+
+      - name: Fall back to the public Clerk identifiers when the vars are unset
+        shell: bash
+        run: |
+          set -euo pipefail
+          env_example() { sed -n "s|^T3CODE_$1=||p" .env.example; }
+          for name in CLERK_PUBLISHABLE_KEY CLERK_CLI_OAUTH_CLIENT_ID; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "T3CODE_$name=$(env_example "$name")" >> "$GITHUB_ENV"
+            fi
+          done
+          # A -preview.<date>.<n> version makes the build skip updater metadata,
+          # so no GitHub App publish credential is needed.
+          echo "BUILD_VERSION=0.1.10-preview.$(date -u +%Y%m%d).1" >> "$GITHUB_ENV"
+
+      - name: Setup dependencies
+        uses: ./.github/actions/setup-ci-deps
+        with:
+          # web builds the desktop renderer; the `...` suffix on desktop does not
+          # pull it in because web is not a workspace dependency of desktop.
+          install-args: --filter=t3... --filter=@t3tools/web... --filter=@t3tools/desktop... --filter=@t3tools/scripts...
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ env.RUST_TARGET }}
+
+      - name: Install cargo-xwin
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-xwin@0.23.1
+
+      - name: Build resource monitor
+        shell: bash
+        run: cargo xwin build --locked --release --manifest-path native/resource-monitor/Cargo.toml --target "$RUST_TARGET"
+
+      - name: Build JS bundle
+        shell: bash
+        run: vp run build:desktop:bundle
+
+      - name: Build desktop artifact
+        shell: bash
+        env:
+          # Skips the Rust and MSVC prerequisite probes, which look for Spectre
+          # libraries this job does not need now that the monitor binary exists.
+          T3CODE_DESKTOP_REUSE_RESOURCE_MONITOR: "true"
+        run: |
+          node scripts/build-desktop-artifact.ts \
+            --platform win \
+            --target nsis \
+            --arch x64 \
+            --build-version "$BUILD_VERSION" \
+            --skip-build \
+            --verbose
+
+      - name: Collect assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist-release
+          # Preview builds have no updater feed, so the blockmaps and yml that
+          # electron-builder still emits would be wrong to ship.
+          cp release/*.exe dist-release/
+          cp release/*.zip dist-release/ 2>/dev/null || true
+          ls -la dist-release/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: t3code-windows-x64
+          path: dist-release/
+          if-no-files-found: error
+
+      - name: Create release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="v$BUILD_VERSION-zh"
+          git tag "$tag"
+          gh release create "$tag" dist-release/* \
+            --title "T3 Code $BUILD_VERSION (简体中文)" \
+            --notes "简体中文界面，可在 设置 → 常规 → 语言 切换中文/英文。未签名安装包，安装时可选目录。" \
+            --target "$GITHUB_SHA"
