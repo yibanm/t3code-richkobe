@@ -59,8 +59,9 @@ jobs:
             fi
           done
           # A -preview.<date>.<n> version makes the build skip updater metadata,
-          # so no GitHub App publish credential is needed.
-          echo "BUILD_VERSION=0.1.10-preview.$(date -u +%Y%m%d).1" >> "$GITHUB_ENV"
+          # so no GitHub App publish credential is needed. The run number keeps
+          # reruns on the same day from colliding on the release tag.
+          echo "BUILD_VERSION=0.1.10-preview.$(date -u +%Y%m%d).$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
 
       - name: Setup dependencies
         uses: ./.github/actions/setup-ci-deps
@@ -86,31 +87,47 @@ jobs:
         shell: bash
         run: vp run build:desktop:bundle
 
-      - name: Build desktop artifact
+      # Names follow the release convention: <name>-<version>-<platform>-<arch>.<ext>.
+      # Each build is collected right after it runs, so a later build that clears
+      # release/ cannot lose an earlier artifact.
+      - name: Build installer and collect it
         shell: bash
         env:
           # Skips the Rust and MSVC prerequisite probes, which look for Spectre
           # libraries this job does not need now that the monitor binary exists.
           T3CODE_DESKTOP_REUSE_RESOURCE_MONITOR: "true"
         run: |
+          set -euo pipefail
           node scripts/build-desktop-artifact.ts \
-            --platform win \
-            --target nsis \
-            --arch x64 \
-            --build-version "$BUILD_VERSION" \
-            --skip-build \
-            --verbose
+            --platform win --target nsis --arch x64 \
+            --build-version "$BUILD_VERSION" --skip-build --verbose
+          mkdir -p dist-release
+          setup=$(ls release/*-x64.exe 2>/dev/null | head -1)
+          [[ -n "$setup" ]] || { echo "::error::no installer produced"; exit 1; }
+          cp "$setup" "dist-release/t3code-$BUILD_VERSION-windows-x64-setup.exe"
 
-      - name: Collect assets
+      - name: Build portable zip and collect it
+        shell: bash
+        env:
+          T3CODE_DESKTOP_REUSE_RESOURCE_MONITOR: "true"
+        run: |
+          set -euo pipefail
+          # Reuses the JS bundle from the first call, so this only re-packages.
+          node scripts/build-desktop-artifact.ts \
+            --platform win --target zip --arch x64 \
+            --build-version "$BUILD_VERSION" --skip-build --verbose
+          portable=$(ls release/*-x64.zip 2>/dev/null | head -1)
+          [[ -n "$portable" ]] || { echo "::error::no portable zip produced"; exit 1; }
+          cp "$portable" "dist-release/t3code-$BUILD_VERSION-windows-x64-portable.zip"
+
+      - name: List assets
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p dist-release
-          # Preview builds have no updater feed, so the blockmaps and yml that
-          # electron-builder still emits would be wrong to ship.
-          cp release/*.exe dist-release/
-          cp release/*.zip dist-release/ 2>/dev/null || true
           ls -la dist-release/
+          # A preview build has no updater feed, so blockmaps and latest*.yml must
+          # not ship: they would let a stable install update onto this build.
+          [[ $(ls dist-release/ | wc -l) -eq 2 ]] || { echo "::error::expected exactly 2 assets"; exit 1; }
 
       - uses: actions/upload-artifact@v4
         with:
