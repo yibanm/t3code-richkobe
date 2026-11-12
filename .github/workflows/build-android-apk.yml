@@ -80,6 +80,32 @@ jobs:
           # "t3code richkobe" from apps/mobile/app.config.ts.
           EXPO_NO_GIT_STATUS=1 npx expo prebuild --clean --platform android --no-install
 
+      # CLAUDE.md 0.10: releases must carry the project keystore, never the debug
+      # key, or users cannot upgrade in place. The plugin reads these variables and
+      # falls back to the debug keystore only while the secrets are absent.
+      - name: Prepare release signing
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.RICHKOBE_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.RICHKOBE_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RICHKOBE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.RICHKOBE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$KEYSTORE_B64" ]]; then
+            echo "::warning::RICHKOBE_KEYSTORE_B64 is not set; the APK will be debug-signed and cannot be upgraded in place."
+            exit 0
+          fi
+          keystore="$RUNNER_TEMP/richkobe-release.jks"
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$keystore"
+          # The plugin resolves storeFile against the android project, so pass an absolute path.
+          {
+            echo "T3CODE_ANDROID_KEYSTORE_FILE=$keystore"
+            echo "T3CODE_ANDROID_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD"
+            echo "T3CODE_ANDROID_KEY_ALIAS=${KEY_ALIAS:-richkobe}"
+            echo "T3CODE_ANDROID_KEY_PASSWORD=${KEY_PASSWORD:-$KEYSTORE_PASSWORD}"
+          } >> "$GITHUB_ENV"
+
       - name: Build release APK
         working-directory: apps/mobile/android
         shell: bash
