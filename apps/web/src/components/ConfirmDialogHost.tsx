@@ -88,11 +88,17 @@ export function ConfirmDialogHost() {
           ) : null}
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogClose render={<Button variant="outline" />}>{t("app.common.cancel")}</AlertDialogClose>
+          <AlertDialogClose render={<Button variant="outline" />}>
+            {t("app.common.cancel")}
+          </AlertDialogClose>
           {focusConfirm && confirmVariant === "default" ? (
-            <AlertDialogAction onClick={onConfirm}>{t("app.confirmDialog.confirm")}</AlertDialogAction>
+            <AlertDialogAction onClick={onConfirm}>
+              {t("app.confirmDialog.confirm")}
+            </AlertDialogAction>
           ) : (
-            <Button variant={confirmVariant} onClick={onConfirm}>{t("app.confirmDialog.confirm")}</Button>
+            <Button variant={confirmVariant} onClick={onConfirm}>
+              {t("app.confirmDialog.confirm")}
+            </Button>
           )}
         </AlertDialogFooter>
       </AlertDialogPopup>

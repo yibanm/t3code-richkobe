@@ -506,9 +506,13 @@ function ReviewThreadEvent({
           )}
           {thread.isResolved ? (
             <span className="inline-flex shrink-0 items-center gap-1 font-medium text-success-foreground">
-              <CircleCheckIcon aria-hidden className="size-3" />{t("review.extra.resolved")}</span>
+              <CircleCheckIcon aria-hidden className="size-3" />
+              {t("review.extra.resolved")}
+            </span>
           ) : null}
-          {dismissed ? <span className="shrink-0 font-medium">{t("review.extra.review.dismissed")}</span> : null}
+          {dismissed ? (
+            <span className="shrink-0 font-medium">{t("review.extra.review.dismissed")}</span>
+          ) : null}
           {thread.isOutdated ? <span className="shrink-0 font-medium">Outdated</span> : null}
           {expanded ? null : (
             <span className="shrink-0">

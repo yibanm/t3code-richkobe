@@ -124,7 +124,9 @@ export function RelayClientInstallDialog() {
             >
               {t("misc.cloud.install.cancel")}
             </Button>
-            <DialogAction onClick={() => respondToRelayClientInstallConfirmation(true)}>{t("misc.cloud.install.confirm")}</DialogAction>
+            <DialogAction onClick={() => respondToRelayClientInstallConfirmation(true)}>
+              {t("misc.cloud.install.confirm")}
+            </DialogAction>
           </DialogFooter>
         ) : null}
       </DialogPopup>

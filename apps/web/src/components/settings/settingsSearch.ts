@@ -390,7 +390,7 @@ export const SETTINGS_SEARCH_ITEMS = [
     id: "ui-language",
     titleKey: "settings.search.items.ui-language",
     title: "Language",
-    to: "/settings/appearance",
+    to: "/settings/general",
     searchTerms: ["language locale translation i18n english chinese 简体中文 语言 界面语言 翻译"],
   },
   {
