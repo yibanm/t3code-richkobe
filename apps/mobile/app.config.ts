@@ -95,10 +95,10 @@ const VARIANT_CONFIG = {
     assets: PREVIEW_ASSETS,
   },
   production: {
-    appName: "T3 Code",
+    appName: "t3code richkobe",
     scheme: "t3code",
-    iosBundleIdentifier: "com.t3tools.t3code",
-    androidPackage: "com.t3tools.t3code",
+    iosBundleIdentifier: "com.richkobe.t3code",
+    androidPackage: "com.richkobe.t3code",
     relyingParty: "clerk.t3.codes",
     assets: RELEASE_ASSETS,
   },

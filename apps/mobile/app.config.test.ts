@@ -26,10 +26,8 @@ it.each(["prod", ""])("rejects APP_VARIANT=%j before selecting production IDs", 
 });
 
 it.each([
-  [undefined, "com.t3tools.t3code"],
   ["development", "com.t3tools.t3code.dev"],
   ["preview", "com.t3tools.t3code.preview"],
-  ["production", "com.t3tools.t3code"],
 ])("keeps the iOS and Android identifiers for APP_VARIANT=%j", async (value, identifier) => {
   const config = await loadConfig(value);
   expect(config.ios?.bundleIdentifier).toBe(identifier);
@@ -45,3 +43,20 @@ it.each([
   ]);
   expect(assetLinks.map((link) => link.target.package_name)).toContain(identifier);
 });
+
+// This fork rebrands the production identifiers, which app.t3.codes does not list in
+// its apple-app-site-association or assetlinks, so thread links cannot open this build.
+// Assert the rebrand itself and that the link config is still wired; not the well-known files.
+it.each([[undefined], ["production"]])(
+  "rebrands the production identifiers for APP_VARIANT=%j",
+  async (value) => {
+    const config = await loadConfig(value);
+    expect(config.ios?.bundleIdentifier).toBe("com.richkobe.t3code");
+    expect(config.android?.package).toBe("com.richkobe.t3code");
+    const host = new URL(DEFAULT_HOSTED_APP_URL).host;
+    expect(config.ios?.associatedDomains).toContain(`applinks:${host}`);
+    expect(config.android?.intentFilters?.[0]?.data).toEqual([
+      { scheme: "https", host, pathPrefix: "/threads/" },
+    ]);
+  },
+);
