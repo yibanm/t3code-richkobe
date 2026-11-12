@@ -58,10 +58,12 @@ jobs:
               echo "T3CODE_$name=$(env_example "$name")" >> "$GITHUB_ENV"
             fi
           done
-          # A -preview.<date>.<n> version makes the build skip updater metadata,
-          # so no GitHub App publish credential is needed. The run number keeps
-          # reruns on the same day from colliding on the release tag.
-          echo "BUILD_VERSION=0.1.10-preview.$(date -u +%Y%m%d).$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+          # T3CODE_DESKTOP_UPDATE_REPOSITORY without a slash makes
+          # resolveGitHubPublishConfig return undefined, so electron-builder writes no
+          # updater feed and needs no GitHub App credential. Without it a release
+          # version would make the build try to publish to pingdotgg/t3code.
+          echo "T3CODE_DESKTOP_UPDATE_REPOSITORY=disabled" >> "$GITHUB_ENV"
+          echo "BUILD_VERSION=1.0.0" >> "$GITHUB_ENV"
 
       - name: Setup dependencies
         uses: ./.github/actions/setup-ci-deps
@@ -104,7 +106,7 @@ jobs:
           mkdir -p dist-release
           setup=$(ls release/*-x64.exe 2>/dev/null | head -1)
           [[ -n "$setup" ]] || { echo "::error::no installer produced"; exit 1; }
-          cp "$setup" "dist-release/t3code-$BUILD_VERSION-windows-x64-setup.exe"
+          cp "$setup" "dist-release/t3code-richkobe-$BUILD_VERSION-windows-x64-setup.exe"
 
       - name: Build portable zip and collect it
         shell: bash
@@ -118,7 +120,7 @@ jobs:
             --build-version "$BUILD_VERSION" --skip-build --verbose
           portable=$(ls release/*-x64.zip 2>/dev/null | head -1)
           [[ -n "$portable" ]] || { echo "::error::no portable zip produced"; exit 1; }
-          cp "$portable" "dist-release/t3code-$BUILD_VERSION-windows-x64-portable.zip"
+          cp "$portable" "dist-release/t3code-richkobe-$BUILD_VERSION-windows-x64-portable.zip"
 
       - name: List assets
         shell: bash
@@ -142,8 +144,25 @@ jobs:
         run: |
           set -euo pipefail
           tag="v$BUILD_VERSION-zh"
-          git tag "$tag"
+          # Release notes come from CHANGELOG.md, never a string hardcoded here
+          # (CLAUDE.md 0.10 + the awk/\r pitfall in the global log).
+          # sub(/\r$/,"") first — CRLF makes exact-match awk silently emit nothing.
+          awk -v h="## v$BUILD_VERSION" '
+            { sub(/\r$/, "") }
+            $0 == h { f = 1; print; next }
+            /^## / { f = 0 }
+            f
+          ' CHANGELOG.md > notes.md
+          if [[ ! -s notes.md ]]; then
+            echo "::warning::CHANGELOG.md has no ## v$BUILD_VERSION section; falling back to a pointer."
+            printf '本版更新日志见仓库 CHANGELOG.md。\n' > notes.md
+          fi
+          # Idempotent: a rerun on the same version must not fail on an existing tag.
+          git tag "$tag" 2>/dev/null || git tag -f "$tag"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release delete "$tag" --yes --cleanup-tag
+          fi
           gh release create "$tag" dist-release/* \
-            --title "T3 Code $BUILD_VERSION (简体中文)" \
-            --notes "简体中文界面，可在 设置 → 常规 → 语言 切换中文/英文。未签名安装包，安装时可选目录。" \
+            --title "t3code richkobe v$BUILD_VERSION (简体中文)" \
+            --notes-file notes.md \
             --target "$GITHUB_SHA"

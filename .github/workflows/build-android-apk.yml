@@ -52,10 +52,9 @@ jobs:
           echo "T3CODE_CLERK_JWT_TEMPLATE=t3-relay" >> "$GITHUB_ENV"
           echo "T3CODE_RELAY_URL=https://relay.t3.codes" >> "$GITHUB_ENV"
           echo "T3CODE_TELEMETRY_CHANNEL=dev" >> "$GITHUB_ENV"
-          # A -preview.<date>.<n> version keeps reruns on one day from colliding.
           # T3CODE_MOBILE_VERSION feeds app.config.ts so the APK's own versionName
           # matches the artifact filename (both would otherwise diverge).
-          version="2.3.0-preview.$(date -u +%Y%m%d).$GITHUB_RUN_NUMBER"
+          version="1.0.0"
           echo "BUILD_VERSION=$version" >> "$GITHUB_ENV"
           echo "T3CODE_MOBILE_VERSION=$version" >> "$GITHUB_ENV"
 
@@ -123,8 +122,8 @@ jobs:
           mkdir -p dist-release
           apk=$(find apps/mobile/android/app/build/outputs/apk/release -name "*.apk" | head -1)
           [[ -n "$apk" ]] || { echo "::error::no APK produced"; exit 1; }
-          # Names follow the convention: <name>-<version>-<platform>-<arch>.<ext>
-          cp "$apk" "dist-release/t3code-richkobe-$BUILD_VERSION-android-arm64.apk"
+          # reactNativeArchitectures=armeabi-v7a,arm64-v8a,x86,x86_64 → universal, not arm64
+          cp "$apk" "dist-release/t3code-richkobe-$BUILD_VERSION-android-universal.apk"
           ls -la dist-release/
 
       - uses: actions/upload-artifact@v4
@@ -140,8 +139,23 @@ jobs:
         run: |
           set -euo pipefail
           tag="v$BUILD_VERSION-zh-android"
-          git tag "$tag"
+          # Notes come from CHANGELOG.md, never a hardcoded string (CLAUDE.md 0.10).
+          # sub(/\r$/,"") first — CRLF makes exact-match awk silently emit nothing.
+          awk -v h="## v$BUILD_VERSION" '
+            { sub(/\r$/, "") }
+            $0 == h { f = 1; print; next }
+            /^## / { f = 0 }
+            f
+          ' CHANGELOG.md > notes.md
+          if [[ ! -s notes.md ]]; then
+            echo "::warning::CHANGELOG.md has no ## v$BUILD_VERSION section; falling back to a pointer."
+            printf '本版更新日志见仓库 CHANGELOG.md。\n' > notes.md
+          fi
+          git tag "$tag" 2>/dev/null || git tag -f "$tag"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release delete "$tag" --yes --cleanup-tag
+          fi
           gh release create "$tag" dist-release/* \
-            --title "T3 Code $BUILD_VERSION 简体中文 (Android)" \
-            --notes "简体中文界面，可在 设置 → 语言 切换中文/英文。Debug 签名（release 主密钥待确认后补签名）。" \
+            --title "t3code richkobe v$BUILD_VERSION 简体中文 (Android)" \
+            --notes-file notes.md \
             --target "$GITHUB_SHA"

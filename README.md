@@ -1,4 +1,80 @@
-# T3 Code
+# t3code richkobe — 带简体中文界面的 T3 Code
+
+T3 Code 的汉化增强版：在上游基础上添加**简体中文界面**与语言切换设置，并把 Windows 安装器改为**可选择安装目录**的向导式安装。
+
+T3 Code 本身是一个「AI 编码代理控制面板」：它能远程控制你机器上已登录的编码代理（Claude Code、Codex、Cursor、Grok Build、OpenCode、Google Antigravity、fx），通过桌面端、网页端和手机端随时查看与操作。
+
+## 本版定制
+
+- **简体中文界面**：桌面端全部界面已翻译（13477 条文案，覆盖聊天、设置、代码审查、语音等模块）。未翻译的内容自动回退英文，不会出现空白或乱码。
+- **语言切换**：在 **设置 → 常规 → 语言** 中选择「跟随系统 / English / 简体中文」，切换立即生效、无需重启，选择会被记住。
+- **Windows 安装器可选目录**：从一键静默安装改为向导式安装，可自选安装位置。
+- **Android APK**：软件名 `t3code richkobe`，包名 `com.richkobe.t3code`，通用包（含 arm64-v8a / armeabi-v7a / x86 / x86_64）。
+
+> 移动端的汉化目前只覆盖「设置」页，其余界面仍是英文；桌面端是完整汉化。详见 [CHANGELOG.md](./CHANGELOG.md) 的「已知限制」。
+
+## 下载与安装
+
+| 平台 | 文件 | 安装方式 |
+|---|---|---|
+| Windows x64 | `t3code-richkobe-1.0.0-windows-x64-setup.exe` | 双击运行，按向导选择安装目录 |
+| Windows x64 便携版 | `t3code-richkobe-1.0.0-windows-x64-portable.zip` | 解压后直接运行，无需安装 |
+| Android（通用包） | `t3code-richkobe-1.0.0-android-universal.apk` | 允许「未知来源应用」后安装，需 Android 7.0 及以上 |
+
+最新下载地址见 [Release 页面](https://github.com/yibanm/t3code-richkobe/releases)。
+
+安装包未做代码签名：Windows 会弹「已保护你的电脑」提示，点「更多信息 → 仍要运行」即可；Android 需允许未知来源安装。
+
+## 使用前准备
+
+T3 Code 需要至少一个已登录的编码代理命令行工具才能工作：
+
+| 代理 | 安装与登录 |
+|---|---|
+| Claude Code | 安装 [Claude Code](https://claude.com/product/claude-code)，运行 `claude auth login` |
+| Codex | 安装 [Codex CLI](https://developers.openai.com/codex/cli)，运行 `codex login` |
+| Cursor | 安装 [Cursor CLI](https://cursor.com/cli)，运行 `agent login` |
+| Grok Build | 安装 [Grok Build CLI](https://x.ai/cli)，运行 `grok login` |
+| OpenCode | 安装 [OpenCode](https://opencode.ai)，运行 `opencode auth login` |
+| Antigravity | 在设置里启用，用「Install Antigravity」并以 Google 登录，无需命令行工具 |
+| fx | 安装 [fx](https://fx.sh)，在运行服务端的那台机器上执行 `fx login` |
+
+## 从源码构建
+
+需要 Node.js 与 pnpm（版本见 `package.json` 的 `engines` 与 `packageManager`）：
+
+```bash
+pnpm install
+pnpm run dev          # 同时启动服务端与网页端
+```
+
+Windows 安装包与便携版（需要 Rust 与 Windows SDK）：
+
+```bash
+pnpm run dist:desktop:win:x64
+```
+
+Android APK（需要 Android SDK 与 JDK 17）：
+
+```bash
+cd apps/mobile
+npx expo prebuild --clean --platform android --no-install
+cd android && ./gradlew assembleRelease
+```
+
+**注意**：项目路径不要包含中文或非 ASCII 字符——`apps/web/vite.config.ts` 用 `new URL(...)` 生成资源别名，非 ASCII 路径会被 percent-encode 成非法路径，导致构建与测试失败（`os error 123`）。
+
+## 与上游的关系
+
+本仓库 fork 自 [pingdotgg/t3code](https://github.com/pingdotgg/t3code)，保留上游全部功能，汉化与安装器改动集中在 `i18n-zh-hans` 分支。上游许可为 MIT。
+
+## 更新日志
+
+见 [CHANGELOG.md](./CHANGELOG.md)。
+
+---
+
+## 以下为上游原始说明
 
 T3 Code is an "agent harness control surface". It enables control of the agents on your machine with a best-in-class mobile app ([iOS](https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824), [Android](https://play.google.com/store/apps/details?id=com.t3tools.t3code)), [web app](https://app.t3.codes) and [Electron-based desktop app](https://t3.codes).
 
